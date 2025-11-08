@@ -1,0 +1,31 @@
+{
+  "datacenter": "dc1",
+  "data_dir": "/consul/data",
+  "log_level": "INFO",
+  "node_name": "consul-server-1",
+  "server": true,
+  "bootstrap_expect": 1,
+  "ui": true,
+  "client_addr": "0.0.0.0",
+  "bind_addr": "0.0.0.0",
+  "enable_script_checks": true,
+  "ports": {
+    "dns": 53,
+    "http": 8500,
+    "https": -1,
+    "grpc": -1,
+    "grpc_tls": -1,
+    "serf_lan": 8301,
+    "serf_wan": 8302,
+    "server": 8300
+  },
+  "checks": [
+    {
+      "id": "consul-self-check",
+      "name": "Consul Self Check",
+      "tcp": "localhost:8500",
+      "interval": "10s",
+      "timeout": "1s"
+    }
+  ]
+}

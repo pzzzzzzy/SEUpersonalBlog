@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: blog
+    ports:
+      - "3307:3306"
+    volumes:
+        - mysql-data:/var/lib/mysql
+        - ./configs/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - blog-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Consul服务注册发现
+  consul:
+    image: consul:1.15
+    container_name: consul
+    ports:
+      - "8500:8500"  # HTTP API
+      - "8600:8600/udp"  # DNS服务
+    volumes:
+      - ./configs/consul.json:/consul/config/consul.json
+      - consul-data:/consul/data
+    networks:
+      - blog-network
+    restart: unless-stopped
+    command: agent -server -bootstrap-expect=1 -ui -bind=0.0.0.0 -data-dir=/consul/data
+
+  # Traefik API网关
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    ports:
+      - "8086:80"    # HTTP入口
+      - "8084:8080"  # Traefik管理界面
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./configs/traefik.yml:/etc/traefik/traefik.yml
+      - ./configs/dynamic-config.yml:/etc/traefik/dynamic-config.yml
+    networks:
+      - blog-network
+    restart: unless-stopped
+    depends_on:
+      - consul
+
+  # 认证服务
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    environment:
+      PORT: 8081
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: password
+      DB_NAME: blog
+      CONSUL_ADDR: consul:8500
+      SERVICE_NAME: auth-service
+      SERVICE_ID: auth-service-1
+      SERVICE_PORT: 8081
+    networks:
+      - blog-network
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - consul
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
+      - "traefik.http.services.auth.loadbalancer.server.port=8081"
+
+  # 文章服务
+  article-service:
+    build:
+      context: ./article-service
+    container_name: article-service
+    environment:
+      PORT: 8082
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: password
+      DB_NAME: blog
+      CONSUL_ADDR: consul:8500
+      SERVICE_NAME: article-service
+      SERVICE_ID: article-service-1
+      SERVICE_PORT: 8082
+      AUTH_SERVICE: auth-service
+    networks:
+      - blog-network
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      consul:
+        condition: service_started
+      auth-service:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.article.rule=PathPrefix(`/api/articles`)"
+      - "traefik.http.services.article.loadbalancer.server.port=8082"
+
+  # 评论服务
+  comment-service:
+    build:
+      context: ./comment-service
+    container_name: comment-service
+    environment:
+      PORT: 8083
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: password
+      DB_NAME: blog
+      CONSUL_ADDR: consul:8500
+      SERVICE_NAME: comment-service
+      SERVICE_ID: comment-service-1
+      SERVICE_PORT: 8083
+      AUTH_SERVICE: auth-service
+    networks:
+      - blog-network
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - consul
+      - auth-service
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.comment.rule=PathPrefix(`/api/comments`) || PathPrefix(`/api/user/comments`)"
+      - "traefik.http.services.comment.loadbalancer.server.port=8083"
+
+  # 前端服务
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    volumes:
+      - /Users/bytedance/personal-blog/frontend:/usr/share/nginx/html:ro
+      - ./configs/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - blog-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`) && !PathPrefix(`/api`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+networks:
+  blog-network:
+    name: blog-network
+    driver: bridge
+
+volumes:
+  mysql-data:
+  consul-data:

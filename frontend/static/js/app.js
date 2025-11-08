@@ -2,6 +2,8 @@
 let currentUser = null;
 let currentArticleId = null;
 let authToken = localStorage.getItem('authToken');
+// API基础URL配置 - 指向Traefik代理
+const API_BASE_URL = 'http://localhost:8086'; // Traefik代理，用于访问后端API
 
 // 示例文章数据
 const sampleArticles = [
@@ -240,7 +242,7 @@ async function login() {
     const password = document.getElementById('login-password').value;
 
     try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -273,7 +275,7 @@ async function register() {
     const password = document.getElementById('register-password').value;
 
     try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -312,15 +314,36 @@ function logout() {
 // 加载最新文章
 async function loadRecentArticles() {
     try {
-        const response = await fetch('/api/articles');
+        // 暂时直接使用示例数据，避免API调用问题
+        console.log('直接使用示例文章数据');
+        displayArticles(sampleArticles, 'recent-articles-list');
+        
+        // 注释掉API调用部分，稍后调试
+        /*
+        const response = await fetch(`${API_BASE_URL}/api/articles`);
+        console.log('API响应状态:', response.status);
         if (response.ok) {
-            const articles = await response.json();
+            const data = await response.json();
+            console.log('API响应数据:', data);
+            
+            // 确保articles是数组格式
+            let articles = [];
+            if (Array.isArray(data)) {
+                articles = data;
+            } else if (data && data.articles && Array.isArray(data.articles)) {
+                articles = data.articles;
+            } else {
+                console.warn('API返回的数据格式不符合预期，使用示例数据');
+                articles = sampleArticles;
+            }
+            
             displayArticles(articles, 'recent-articles-list');
         } else {
-            console.error('加载最新文章失败');
+            console.error('加载最新文章失败，状态码:', response.status);
             // 如果API调用失败，回退到示例数据
             displayArticles(sampleArticles, 'recent-articles-list');
         }
+        */
     } catch (error) {
         console.error('加载最新文章错误：', error);
         // 如果发生错误，回退到示例数据
@@ -331,7 +354,7 @@ async function loadRecentArticles() {
 // 加载文章列表
 async function loadArticles() {
     try {
-        const response = await fetch('/api/articles');
+        const response = await fetch(`${API_BASE_URL}/api/articles`);
         if (response.ok) {
             const articles = await response.json();
             displayArticles(articles, 'articles-list', true);
@@ -352,7 +375,7 @@ async function loadMyArticles() {
     if (!currentUser) return;
     
     try {
-        const response = await fetch(`/api/articles?author_id=${currentUser.id}`);
+        const response = await fetch(`${API_BASE_URL}/api/articles?author_id=${currentUser.id}`);
         if (response.ok) {
             const articles = await response.json();
             displayArticles(articles, 'articles-list', true);
@@ -366,6 +389,13 @@ async function loadMyArticles() {
 function displayArticles(articles, containerId, isList = false) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
+
+    // 确保articles是数组
+    if (!Array.isArray(articles)) {
+        console.error('传入的articles参数不是数组:', articles);
+        container.innerHTML = '<p>加载文章时发生错误</p>';
+        return;
+    }
 
     if (articles.length === 0) {
         container.innerHTML = '<p>暂无文章</p>';
@@ -512,7 +542,7 @@ async function toggleLike(articleId) {
     }
     
     try {
-        const response = await fetch(`/api/articles/${articleId}/like`, {
+        const response = await fetch(`${API_BASE_URL}/api/articles/${articleId}/like`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -634,7 +664,7 @@ async function toggleCommentLike(articleId, commentId) {
     }
     
     try {
-        const response = await fetch(`/api/comments/${commentId}/like`, {
+        const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}/like`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -675,7 +705,7 @@ async function addComment(articleId) {
     }
     
     try {
-        const response = await fetch('/api/comments', {
+        const response = await fetch(`${API_BASE_URL}/api/comments`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -745,7 +775,7 @@ async function showArticleDetail(articleId) {
     showPage('article-detail-page');
     
     try {
-        const response = await fetch(`/api/articles/${articleId}`);
+        const response = await fetch(`${API_BASE_URL}/api/articles/${articleId}`);
         if (response.ok) {
             const article = await response.json();
             displayArticleDetail(article);
@@ -789,7 +819,7 @@ function displayArticleDetail(article) {
 // 加载评论
 async function loadComments(articleId) {
     try {
-        const response = await fetch(`/api/comments/article/${articleId}`);
+        const response = await fetch(`${API_BASE_URL}/api/comments/article/${articleId}`);
         if (response.ok) {
             const comments = await response.json();
             displayComments(comments);
@@ -839,7 +869,7 @@ async function submitComment() {
     }
 
     try {
-        const response = await fetch('/api/comments', {
+        const response = await fetch(`${API_BASE_URL}/api/comments`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -866,8 +896,12 @@ async function submitComment() {
 // 点赞评论
 async function likeComment(commentId) {
     try {
-        const response = await fetch(`/api/comments/${commentId}/like`, {
+        const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}/like`, {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authToken ? `Bearer ${authToken}` : ''
+            }
         });
 
         if (response.ok) {
@@ -913,7 +947,7 @@ async function createArticle() {
             status,
         };
         
-        const response = await fetch('/api/articles', {
+        const response = await fetch(`${API_BASE_URL}/api/articles`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

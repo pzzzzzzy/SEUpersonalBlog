@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人博客系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="nav-container">
+                <h1 class="logo">我的博客</h1>
+                <ul class="nav-menu">
+                    <li><a href="#" onclick="showHome()">首页</a></li>
+                    <li><a href="#" onclick="showArticles()">文章</a></li>
+                    <li id="user-menu" style="display: none;">
+                        <a href="#" onclick="showProfile()">个人中心</a>
+                        <a href="#" onclick="logout()">退出</a>
+                    </li>
+                    <li id="guest-menu">
+                        <a href="#" onclick="showLogin()">登录</a>
+                        <a href="#" onclick="showRegister()">注册</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- 首页 -->
+        <div id="home-page" class="page">
+            <section class="hero">
+                <h2>欢迎来到我的博客</h2>
+                <p>分享技术、记录生活、交流思想</p>
+            </section>
+            
+            <section class="recent-articles">
+                <h3>最新文章</h3>
+                <div id="recent-articles-list" class="articles-grid">
+                    <!-- 文章列表将在这里动态加载 -->
+                </div>
+            </section>
+        </div>
+
+        <!-- 文章列表页 -->
+        <div id="articles-page" class="page" style="display: none;">
+            <h2>文章列表</h2>
+            <div id="articles-list" class="articles-list">
+                <!-- 文章列表将在这里动态加载 -->
+            </div>
+        </div>
+
+        <!-- 文章详情页 -->
+        <div id="article-detail-page" class="page" style="display: none;">
+            <article id="article-content">
+                <!-- 文章详情将在这里动态加载 -->
+            </article>
+            
+            <section class="comments-section">
+                <h3>评论</h3>
+                <div id="comments-list">
+                    <!-- 评论列表将在这里动态加载 -->
+                </div>
+                <div id="comment-form" style="display: none;">
+                    <textarea id="comment-content" placeholder="写下你的评论..."></textarea>
+                    <button onclick="submitComment()">发表评论</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- 登录页 -->
+        <div id="login-page" class="page auth-page" style="display: none;">
+            <div class="auth-container">
+                <h2>用户登录</h2>
+                <form id="login-form">
+                    <input type="text" id="login-username" placeholder="用户名" required>
+                    <input type="password" id="login-password" placeholder="密码" required>
+                    <button type="submit">登录</button>
+                </form>
+                <p>还没有账号？<a href="#" onclick="showRegister()">立即注册</a></p>
+            </div>
+        </div>
+
+        <!-- 注册页 -->
+        <div id="register-page" class="page auth-page" style="display: none;">
+            <div class="auth-container">
+                <h2>用户注册</h2>
+                <form id="register-form">
+                    <input type="text" id="register-username" placeholder="用户名" required>
+                    <input type="email" id="register-email" placeholder="邮箱" required>
+                    <input type="password" id="register-password" placeholder="密码" required>
+                    <button type="submit">注册</button>
+                </form>
+                <p>已有账号？<a href="#" onclick="showLogin()">立即登录</a></p>
+            </div>
+        </div>
+
+        <!-- 个人中心 -->
+        <div id="profile-page" class="page" style="display: none;">
+            <div class="profile-container">
+                <h2>个人中心</h2>
+                <div class="profile-info">
+                    <div class="profile-avatar">
+                        <img id="profile-avatar" src="/static/images/default-avatar.png" alt="头像">
+                    </div>
+                    <div class="profile-details">
+                        <h3 id="profile-username">用户名</h3>
+                        <p id="profile-email">邮箱</p>
+                        <p id="profile-bio">个人简介</p>
+                    </div>
+                </div>
+                
+                <div class="profile-actions">
+                    <button onclick="showCreateArticle()">写文章</button>
+                    <button onclick="showMyArticles()">我的文章</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 写文章页 -->
+        <div id="create-article-page" class="page" style="display: none;">
+            <div class="editor-container">
+                <h2>写文章</h2>
+                <form id="article-form">
+                    <input type="text" id="article-title" placeholder="文章标题" required>
+                    <textarea id="article-content" placeholder="文章内容" rows="20" required></textarea>
+                    <div id="content-debug" style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px; display: none;"></div>
+                    <input type="text" id="article-summary" placeholder="文章摘要">
+                    <input type="text" id="article-tags" placeholder="标签（用逗号分隔）">
+                    <select id="article-status">
+                        <option value="draft">草稿</option>
+                        <option value="published">发布</option>
+                    </select>
+                    <button type="submit">保存</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 个人博客系统. All rights reserved.</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

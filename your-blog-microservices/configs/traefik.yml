@@ -1,0 +1,36 @@
+# Traefik静态配置文件
+
+# API配置（管理界面）
+api:
+  dashboard: true
+  insecure: true  # 在生产环境中应该设置为false并配置TLS
+
+# 日志配置
+log:
+  level: INFO
+
+# 入口点配置
+entryPoints:
+  web:
+    address: ":80"
+
+# 服务发现配置
+providers:
+  # Docker服务发现
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false  # 只有设置了traefik.enable=true标签的容器才会被发现
+    network: blog-network  # 使用的Docker网络名称
+
+  # Consul服务发现
+  consulCatalog:
+    endpoint:
+      address: "consul:8500"
+      scheme: http
+    exposedByDefault: true
+    prefix: "traefik"
+
+  # 文件配置（动态配置）
+  file:
+    directory: "/etc/traefik"
+    watch: true  # 监听文件变化

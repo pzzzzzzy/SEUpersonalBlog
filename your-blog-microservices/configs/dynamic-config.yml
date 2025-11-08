@@ -1,0 +1,89 @@
+# Traefik动态配置文件
+
+http:
+  # 中间件配置
+  middlewares:
+    # CORS中间件
+    cors-headers:
+      headers:
+        accessControlAllowOriginList:
+          - "*"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "OPTIONS"
+        accessControlAllowHeaders:
+          - "Origin"
+          - "Content-Type"
+          - "Accept"
+          - "Authorization"
+          - "X-Requested-With"
+        accessControlMaxAge: 86400
+
+  # 服务配置
+  services:
+    # 认证服务
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://auth-service:8081"
+
+    # 文章服务
+    article-service:
+      loadBalancer:
+        servers:
+          - url: "http://article-service:8082"
+
+    # 评论服务
+    comment-service:
+      loadBalancer:
+        servers:
+          - url: "http://comment-service:8083"
+    
+    # 前端服务
+    frontend-service:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"
+
+
+
+  # 路由配置
+  routers:
+    # 前端服务路由
+    frontend-router:
+      entryPoints:
+        - "web"
+      rule: "PathPrefix(`/`) && !PathPrefix(`/api`)"
+      service: "frontend-service"
+      middlewares:
+        - "cors-headers"
+
+    # 认证服务路由
+    auth-router:
+      entryPoints:
+        - "web"
+      rule: "PathPrefix(`/api/auth`)"
+      service: "auth-service"
+      middlewares:
+        - "cors-headers"
+
+    # 文章服务路由
+    article-router:
+      entryPoints:
+        - "web"
+      rule: "PathPrefix(`/api/articles`)"
+      service: "article-service"
+      middlewares:
+        - "cors-headers"
+
+    # 评论服务路由
+    comment-router:
+      entryPoints:
+        - "web"
+      rule: "PathPrefix(`/api/comments`) || PathPrefix(`/api/user/comments`)"
+      service: "comment-service"
+      middlewares:
+        - "cors-headers"
