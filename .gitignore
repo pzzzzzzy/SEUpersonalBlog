@@ -1,0 +1,44 @@
+# Go项目相关
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# 数据库文件
+blog.db
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# IDE和编辑器文件
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+
+# 缓存文件
+vendor/
+.cache/
+
+# 前端相关
+node_modules/
+dist/
+build/
+
+# 临时文件
+tmp/
+temp/
