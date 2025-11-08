@@ -5,6 +5,16 @@ import (
 	"gorm.io/gorm"
 )
 
+type Like struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `json:"user_id"`
+	User      User      `gorm:"foreignKey:UserID" json:"user"`
+	ArticleID uint      `json:"article_id"`
+	Article   Article   `gorm:"foreignKey:ArticleID" json:"article"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type User struct {
 	ID           uint           `gorm:"primaryKey" json:"id"`
 	Username     string         `gorm:"unique;not null" json:"username"`
@@ -33,11 +43,13 @@ type Article struct {
 	Status      string         `gorm:"default:draft" json:"status"` // draft, published
 	ViewCount   int            `gorm:"default:0" json:"view_count"`
 	CommentCount int           `gorm:"default:0" json:"comment_count"`
+	LikeCount   int            `gorm:"default:0" json:"like_count"`
 	IsDraft     bool           `gorm:"default:true" json:"is_draft"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 	Comments    []Comment      `gorm:"foreignKey:ArticleID" json:"comments,omitempty"`
+	Likes       []Like         `gorm:"foreignKey:ArticleID" json:"likes,omitempty"`
 }
 
 type Category struct {

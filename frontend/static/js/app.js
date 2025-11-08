@@ -311,14 +311,40 @@ function logout() {
 
 // 加载最新文章
 async function loadRecentArticles() {
-    // 使用示例数据
-    displayArticles(sampleArticles, 'recent-articles-list');
+    try {
+        const response = await fetch('/api/articles');
+        if (response.ok) {
+            const articles = await response.json();
+            displayArticles(articles, 'recent-articles-list');
+        } else {
+            console.error('加载最新文章失败');
+            // 如果API调用失败，回退到示例数据
+            displayArticles(sampleArticles, 'recent-articles-list');
+        }
+    } catch (error) {
+        console.error('加载最新文章错误：', error);
+        // 如果发生错误，回退到示例数据
+        displayArticles(sampleArticles, 'recent-articles-list');
+    }
 }
 
 // 加载文章列表
 async function loadArticles() {
-    // 使用示例数据
-    displayArticles(sampleArticles, 'articles-list', true);
+    try {
+        const response = await fetch('/api/articles');
+        if (response.ok) {
+            const articles = await response.json();
+            displayArticles(articles, 'articles-list', true);
+        } else {
+            console.error('加载文章列表失败');
+            // 如果API调用失败，回退到示例数据
+            displayArticles(sampleArticles, 'articles-list', true);
+        }
+    } catch (error) {
+        console.error('加载文章列表错误：', error);
+        // 如果发生错误，回退到示例数据
+        displayArticles(sampleArticles, 'articles-list', true);
+    }
 }
 
 // 加载我的文章
@@ -359,14 +385,14 @@ function displayArticles(articles, containerId, isList = false) {
                 <div class="article-actions">
                     <button class="like-btn ${article.liked ? 'liked' : ''}" onclick="toggleLike(${article.id})">
                         <span class="heart">${article.liked ? '❤️' : '🤍'}</span>
-                        <span class="like-count">${article.likes}</span>
+                        <span class="like-count">${article.like_count || article.likes || 0}</span>
                     </button>
                 </div>
             </div>
             <h4><a href="#" onclick="showArticleDetail(${article.id})">${article.title}</a></h4>
             <p>${article.summary || article.content.substring(0, 100) + '...'}</p>
             <div class="article-tags">
-                ${article.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                ${article.tags.map(tag => `<span class="tag">${typeof tag === 'object' ? tag.name : tag}</span>`).join('')}
             </div>
             <div class="article-meta">
                 <span>📖 ${article.view_count}</span>
@@ -411,35 +437,225 @@ function renderComments(articleId) {
 }
 
 // 切换文章点赞状态
-function toggleLike(articleId) {
-    const article = sampleArticles.find(a => a.id === articleId);
-    if (article) {
-        article.liked = !article.liked;
-        article.likes += article.liked ? 1 : -1;
+async function toggleLike(articleId) {
+    if (!currentUser) {
+        alert('请先登录后再点赞');
+        return;
+    }
+    
+    // 立即更新UI状态，提供即时反馈
+    const likeButtons = document.querySelectorAll(`button[onclick="toggleLike(${articleId})"]`);
+    let newLikedState = false;
+    let newLikeCount = 0;
+    
+    // 保存原始状态，用于出错时恢复
+    const originalStates = [];
+    
+    likeButtons.forEach(button => {
+        const heartSpan = button.querySelector('.heart');
+        const likeCountSpan = button.querySelector('.like-count');
         
-        // 重新渲染文章列表
-        displayArticles(sampleArticles, 'recent-articles-list');
+        // 保存原始状态
+        originalStates.push({
+            button,
+            wasLiked: button.classList.contains('liked'),
+            originalCount: parseInt(likeCountSpan?.textContent || '0')
+        });
+        
+        // 切换当前状态（暂时的前端显示）
+        if (button.classList.contains('liked')) {
+            button.classList.remove('liked');
+            if (heartSpan) heartSpan.textContent = '🤍';
+            newLikedState = false;
+            newLikeCount = parseInt(likeCountSpan?.textContent || '0') - 1;
+        } else {
+            button.classList.add('liked');
+            if (heartSpan) heartSpan.textContent = '❤️';
+            newLikedState = true;
+            newLikeCount = parseInt(likeCountSpan?.textContent || '0') + 1;
+        }
+        
+        // 立即更新点赞数显示
+        if (likeCountSpan) {
+            likeCountSpan.textContent = newLikeCount;
+        }
+    });
+    
+    // 立即更新文章详情页（如果当前正在查看该文章）
+    let detailLikeElements = [];
+    if (currentArticleId === articleId) {
+        const likeCountElement = document.querySelector('#article-content .like-count');
+        const articleMetaLikeCount = document.querySelector('#article-content .article-meta span:nth-child(5)');
+        const detailLikeButton = document.querySelector('#article-content button[onclick="toggleLike(' + articleId + ')"]');
+        
+        detailLikeElements = [likeCountElement, articleMetaLikeCount, detailLikeButton];
+        
+        if (likeCountElement) {
+            likeCountElement.dataset.originalValue = likeCountElement.textContent;
+            likeCountElement.textContent = newLikeCount;
+        }
+        
+        if (articleMetaLikeCount) {
+            articleMetaLikeCount.dataset.originalValue = articleMetaLikeCount.textContent;
+            articleMetaLikeCount.textContent = `点赞：${newLikeCount}`;
+        }
+        
+        if (detailLikeButton) {
+            detailLikeButton.dataset.wasLiked = detailLikeButton.classList.contains('liked');
+            const heartSpan = detailLikeButton.querySelector('.heart');
+            if (heartSpan) {
+                heartSpan.dataset.originalText = heartSpan.textContent;
+                heartSpan.textContent = newLikedState ? '❤️' : '🤍';
+            }
+            detailLikeButton.classList.toggle('liked', newLikedState);
+        }
+    }
+    
+    try {
+        const response = await fetch(`/api/articles/${articleId}/like`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authToken ? `Bearer ${authToken}` : ''
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // 使用后端返回的最终状态更新UI
+            likeButtons.forEach(button => {
+                const heartSpan = button.querySelector('.heart');
+                const likeCountSpan = button.querySelector('.like-count');
+                
+                // 根据后端返回的liked状态设置样式和图标
+                if (data.liked) {
+                    button.classList.add('liked');
+                    if (heartSpan) heartSpan.textContent = '❤️';
+                } else {
+                    button.classList.remove('liked');
+                    if (heartSpan) heartSpan.textContent = '🤍';
+                }
+                
+                // 更新点赞数为后端返回的准确值
+                if (likeCountSpan) {
+                    likeCountSpan.textContent = data.like_count || 0;
+                }
+            });
+            
+            // 只在文章详情页更新特定内容，不重新加载整个页面
+            if (currentArticleId === articleId) {
+                const likeCountElement = document.querySelector('#article-content .like-count');
+                if (likeCountElement) {
+                    likeCountElement.textContent = data.like_count || 0;
+                    delete likeCountElement.dataset.originalValue;
+                }
+                
+                const articleMetaLikeCount = document.querySelector('#article-content .article-meta span:nth-child(5)');
+                if (articleMetaLikeCount) {
+                    articleMetaLikeCount.textContent = `点赞：${data.like_count || 0}`;
+                    delete articleMetaLikeCount.dataset.originalValue;
+                }
+                
+                // 更新文章详情页的点赞按钮
+                const detailLikeButton = document.querySelector('#article-content button[onclick="toggleLike(' + articleId + ')"]');
+                if (detailLikeButton) {
+                    const heartSpan = detailLikeButton.querySelector('.heart');
+                    if (heartSpan) {
+                        heartSpan.textContent = data.liked ? '❤️' : '🤍';
+                        delete heartSpan.dataset.originalText;
+                    }
+                    detailLikeButton.classList.toggle('liked', data.liked);
+                    delete detailLikeButton.dataset.wasLiked;
+                }
+            }
+        } else {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || '操作失败');
+        }
+    } catch (error) {
+        console.error('点赞操作错误：', error);
+        
+        // 出错时恢复UI状态
+        originalStates.forEach(({button, wasLiked, originalCount}) => {
+            const heartSpan = button.querySelector('.heart');
+            const likeCountSpan = button.querySelector('.like-count');
+            
+            // 恢复原来的状态
+            if (wasLiked) {
+                button.classList.add('liked');
+                if (heartSpan) heartSpan.textContent = '❤️';
+            } else {
+                button.classList.remove('liked');
+                if (heartSpan) heartSpan.textContent = '🤍';
+            }
+            
+            // 恢复原来的点赞数
+            if (likeCountSpan) {
+                likeCountSpan.textContent = originalCount;
+            }
+        });
+        
+        // 恢复文章详情页
+        if (currentArticleId === articleId) {
+            const likeCountElement = document.querySelector('#article-content .like-count');
+            if (likeCountElement && likeCountElement.dataset.originalValue) {
+                likeCountElement.textContent = likeCountElement.dataset.originalValue;
+                delete likeCountElement.dataset.originalValue;
+            }
+            
+            const articleMetaLikeCount = document.querySelector('#article-content .article-meta span:nth-child(5)');
+            if (articleMetaLikeCount && articleMetaLikeCount.dataset.originalValue) {
+                articleMetaLikeCount.textContent = articleMetaLikeCount.dataset.originalValue;
+                delete articleMetaLikeCount.dataset.originalValue;
+            }
+            
+            const detailLikeButton = document.querySelector('#article-content button[onclick="toggleLike(' + articleId + ')"]');
+            if (detailLikeButton) {
+                const heartSpan = detailLikeButton.querySelector('.heart');
+                if (heartSpan && heartSpan.dataset.originalText) {
+                    heartSpan.textContent = heartSpan.dataset.originalText;
+                    delete heartSpan.dataset.originalText;
+                }
+                detailLikeButton.classList.toggle('liked', detailLikeButton.dataset.wasLiked === 'true');
+                delete detailLikeButton.dataset.wasLiked;
+            }
+        }
+        
+        alert('操作出错，请稍后重试');
     }
 }
 
 // 切换评论点赞状态
-function toggleCommentLike(articleId, commentId) {
-    const comments = sampleComments[articleId];
-    const comment = comments.find(c => c.id === commentId);
-    if (comment) {
-        comment.liked = !comment.liked;
-        comment.likes += comment.liked ? 1 : -1;
+async function toggleCommentLike(articleId, commentId) {
+    if (!currentUser) {
+        alert('请先登录后再点赞');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/comments/${commentId}/like`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authToken ? `Bearer ${authToken}` : ''
+            }
+        });
         
-        // 重新渲染评论
-        const commentsContainer = document.getElementById(`comments-${articleId}`);
-        if (commentsContainer) {
-            commentsContainer.innerHTML = renderComments(articleId);
+        if (response.ok) {
+            // 重新加载评论以更新点赞状态
+            await loadComments(articleId);
+        } else {
+            alert('操作失败，请稍后重试');
         }
+    } catch (error) {
+        console.error('评论点赞操作错误：', error);
+        alert('操作出错，请稍后重试');
     }
 }
 
 // 添加评论
-function addComment(articleId) {
+async function addComment(articleId) {
     if (!currentUser) {
         alert('请先登录后再评论');
         return;
@@ -458,7 +674,35 @@ function addComment(articleId) {
         return;
     }
     
-    // 创建新评论
+    try {
+        const response = await fetch('/api/comments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authToken ? `Bearer ${authToken}` : ''
+            },
+            body: JSON.stringify({
+                article_id: articleId,
+                content: content
+            })
+        });
+        
+        if (response.ok) {
+            // 清空输入框
+            commentInput.value = '';
+            // 重新加载评论
+            await loadComments(articleId);
+            alert('评论发表成功！');
+        } else {
+            alert('评论发表失败，请稍后重试');
+        }
+    } catch (error) {
+        console.error('发表评论错误：', error);
+        alert('发表评论出错，请稍后重试');
+    }
+    return; // 提前返回，不再执行旧的示例代码
+    
+    // 下面是旧的示例代码（不会执行）
     const newComment = {
         id: Date.now(), // 使用时间戳作为ID
         content: content,
@@ -522,6 +766,19 @@ function displayArticleDetail(article) {
             <span>发布时间：${new Date(article.created_at).toLocaleDateString()}</span>
             <span>阅读：${article.view_count}</span>
             <span>评论：${article.comment_count}</span>
+            <span>点赞：${article.like_count || 0}</span>
+        </div>
+        <div class="article-tags">
+            ${article.tags && article.tags.length > 0 ? 
+                article.tags.map(tag => `<span class="tag">${typeof tag === 'object' ? tag.name : tag}</span>`).join('') : 
+                '无标签'
+            }
+        </div>
+        <div class="article-actions">
+            <button class="like-btn ${article.liked ? 'liked' : ''}" onclick="toggleLike(${article.id})">
+                <span class="heart">${article.liked ? '❤️' : '🤍'}</span>
+                <span class="like-count">${article.like_count || article.likes || 0}</span>
+            </button>
         </div>
         <div class="article-body">
             ${article.content}

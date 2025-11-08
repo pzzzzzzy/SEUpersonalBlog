@@ -44,6 +44,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB) {
 				articles.POST("", articleHandler.CreateArticle)
 				articles.PUT("/:id", articleHandler.UpdateArticle)
 				articles.DELETE("/:id", articleHandler.DeleteArticle)
+				articles.POST("/:id/like", articleHandler.ToggleLike)
 			}
 		}
 
